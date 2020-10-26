@@ -12,3 +12,6 @@ perf script
 perf report --stdio
 
 perf report 
+
+perf record -e block:block_rq_insert -a
+dd if=/dev/zero of=data bs=1K count=1M
