@@ -1,0 +1,178 @@
+﻿<!DOCTYPE html>
+<!--[if IE]><![endif]-->
+<html>
+  
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <title>SFTP on windows </title>
+    <meta name="viewport" content="width=device-width">
+    <meta name="title" content="SFTP on windows ">
+    <meta name="generator" content="docfx 2.56.3.0">
+    
+    <link rel="shortcut icon" href="../favicon.ico">
+    <link rel="stylesheet" href="../styles/docfx.vendor.css">
+    <link rel="stylesheet" href="../styles/docfx.css">
+    <link rel="stylesheet" href="../styles/main.css">
+    <meta property="docfx:navrel" content="../toc.html">
+    <meta property="docfx:tocrel" content="toc.html">
+    
+    
+    
+  </head>
+  <body data-spy="scroll" data-target="#affix" data-offset="120">
+    <div id="wrapper">
+      <header>
+        
+        <nav id="autocollapse" class="navbar navbar-inverse ng-scope" role="navigation">
+          <div class="container">
+            <div class="navbar-header">
+              <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#navbar">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+              </button>
+              
+              <a class="navbar-brand" href="../index.html">
+                <img id="logo" class="svg" src="../logo.svg" alt="">
+              </a>
+            </div>
+            <div class="collapse navbar-collapse" id="navbar">
+              <form class="navbar-form navbar-right" role="search" id="search">
+                <div class="form-group">
+                  <input type="text" class="form-control" id="search-query" placeholder="Search" autocomplete="off">
+                </div>
+              </form>
+            </div>
+          </div>
+        </nav>
+        
+        <div class="subnav navbar navbar-default">
+          <div class="container hide-when-search" id="breadcrumb">
+            <ul class="breadcrumb">
+              <li></li>
+            </ul>
+          </div>
+        </div>
+      </header>
+      <div role="main" class="container body-content hide-when-search">
+        
+        <div class="sidenav hide-when-search">
+          <a class="btn toc-toggle collapse" data-toggle="collapse" href="#sidetoggle" aria-expanded="false" aria-controls="sidetoggle">Show / Hide Table of Contents</a>
+          <div class="sidetoggle collapse" id="sidetoggle">
+            <div id="sidetoc"></div>
+          </div>
+        </div>
+        <div class="article row grid-right">
+          <div class="col-md-10">
+            <article class="content wrap" id="_content" data-uid="">
+<h1 id="sftp-on-windows">SFTP on windows</h1>
+
+<p><strong>Pre-requisite</strong>
+We need windows 2019 server for enabling Openssh server and client features</p>
+<h2 id="step-1">Step 1</h2>
+<p>Spin up a windows server 2019 in Azure</p>
+<p>Start the Powershell as administrator and run the below command</p>
+<pre><code>Get-WindowsCapability -Online | Where-Object Name -Like 'OpenSSH*'
+</code></pre>
+<p><img src="../images/sftp_windows/1.PNG" alt=""></p>
+<pre><code>Add-WindowsCapability -Online -Name 'OpenSSH.Server~~~~0.0.1.0'
+</code></pre>
+<div style="page-break-after: always;"></div>
+<h2 id="step-2">Step 2</h2>
+<p>check if the firewall port 22 is allowed. When you run the above command the firewall rule also added automatically</p>
+<p><img src="../images/sftp_windows/2.png" alt=""></p>
+<h2 id="initial-configuration">Initial configuration</h2>
+<p>Start the ssd services</p>
+<pre><code>    Start-Service sshd
+</code></pre>
+<p>Set the start service type as automatic</p>
+<pre><code>Set-Service -Name sshd -StartupType 'Automatic'
+</code></pre>
+<p>Confirm the Firewall rule is configured</p>
+<pre><code>Get-NetFirewallRule -Name *ssh*
+</code></pre>
+<p>Try and access using the admin credential ones from any client machine</p>
+<pre><code>ssh &lt;admin&gt;@&lt;ip or hostname&gt;
+</code></pre>
+<p><img src="../images/sftp_windows/3.png" alt=""></p>
+<blockquote>
+<p>NOTE: if its not working check the firewall rule or NSG rule in cloud</p>
+</blockquote>
+<div style="page-break-after: always;"></div>
+<h2 id="set-the-user">set the user</h2>
+<p>User has to be local user</p>
+<pre><code>New-LocalUser -name bobj_user
+</code></pre>
+<p>This user can be set up with password never expiring also.</p>
+<p><img src="../images/sftp_windows/4.png" alt=""></p>
+<p>Now we will have to give this user access to one specific folder or area when the user sftp into server
+create a directory in any drive and name it properly</p>
+<p>For demo created <strong>c:\bobj</strong></p>
+<div style="page-break-after: always;"></div>
+<h2 id="configure-the-sshd_config">configure the sshd_config</h2>
+<p>We now have to configure the sshd for only sftp on port 22 and allow user access to <strong>c:\bobj</strong> for the user we have created.</p>
+<p>The way we do is to edit the file in the following directory <strong>%ProgramData%\ssh\sshd_config</strong></p>
+<p>To setup a sftp-only chroot server, set ForceCommand to internal-sftp and match user to direct into only <strong>c:\bobj</strong></p>
+<pre><code>ForceCommand internal-sftp
+Match User bobj_user
+	ChrootDirectory &quot;c:\bobj&quot;
+
+</code></pre>
+<blockquote>
+<p>NOTE: This configuration has to be vetted completely and how it has to be set up. Please refer to the documentation <img src="https://docs.microsoft.com/en-us/windows-server/administration/openssh/openssh_server_configuration" alt="link"></p>
+</blockquote>
+<div style="page-break-after: always;"></div>
+<h2 id="lets-create-a-dummy-file-in-the-folder-cbobj">Lets create a dummy file in the folder <strong>C:\bobj</strong></h2>
+<p><img src="../images/sftp_windows/6.PNG" alt=""></p>
+<h2 id="stop-and-start-the-services">Stop and start the services</h2>
+<pre><code>Stop-Service sshd
+Stop-Service ssh-agent
+
+Start-Service sshd
+Start-Service ssh-agent
+</code></pre>
+<div style="page-break-after: always;"></div>
+<h2 id="check-via-any-winscp-or-filezilla-client-if-it-works">check via any winscp or filezilla client if it works</h2>
+<p><img src="../images/sftp_windows/5.PNG" alt=""></p>
+<p><img src="../images/sftp_windows/7.PNG" alt=""></p>
+<h2 id="we-can-set-up-passwordless-authentication-if-required">We can set up passwordless authentication if required.</h2>
+<p>This can also be done using the ssh-keygen to generate a pvt and public key and copy the public key in the %USERPROFILE%.ssh\authorized_keys</p>
+<h3 id="thanks">Thanks</h3>
+</article>
+          </div>
+          
+          <div class="hidden-sm col-md-2" role="complementary">
+            <div class="sideaffix">
+              <div class="contribution">
+                <ul class="nav">
+                </ul>
+              </div>
+              <nav class="bs-docs-sidebar hidden-print hidden-xs hidden-sm affix" id="affix">
+              <!-- <p><a class="back-to-top" href="#top">Back to top</a><p> -->
+              </nav>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <footer>
+        <div class="grad-bottom"></div>
+        <div class="footer">
+          <div class="container">
+            <span class="pull-right">
+              <a href="#top">Back to top</a>
+            </span>
+            
+            <span>Generated by <strong>DocFX</strong></span>
+          </div>
+        </div>
+      </footer>
+    </div>
+    
+    <script type="text/javascript" src="../styles/docfx.vendor.js"></script>
+    <script type="text/javascript" src="../styles/docfx.js"></script>
+    <script type="text/javascript" src="../styles/main.js"></script>
+  </body>
+</html>
